@@ -9,7 +9,6 @@ import { messages } from '../utils'
 
 export function useTotalizers(form: Partial<OrderForm>) {
   const { formatMessage } = useIntl()
-
   const total = form.value ?? 0
   const totalizers = form.totalizers ?? []
 
@@ -34,10 +33,6 @@ export function useTotalizers(form: Partial<OrderForm>) {
     {
       label: formatMessage(messages.paymentMethods),
       value: form.paymentData ? <PaymentData /> : null,
-    },
-    {
-      label: formatMessage(messages.PONumber),
-      value: <PONumber />,
     },
     {
       label: formatMessage(messages.PONumber),
