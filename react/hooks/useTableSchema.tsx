@@ -6,6 +6,8 @@ import { OrderItems } from 'vtex.order-items'
 import { ButtonWithIcon, IconDelete } from 'vtex.styleguide'
 
 import { useOrderFormCustom, usePermissions } from '.'
+import { useCheckoutB2BContext } from '../CheckoutB2BContext'
+import ManualPrice from '../components/ManualPrice'
 import { MarginProductPrice } from '../components/MarginProductPrice'
 import { QuantitySelector } from '../components/QuantitySelector'
 import { TruncatedText } from '../components/TruncatedText'
@@ -18,11 +20,16 @@ function getStrike(item: Item) {
   return { strike: isWithoutStock(item) }
 }
 
-export function useTableSchema(): TableSchema<Item> {
+export function useTableSchema(
+  isEditing: boolean,
+  discount: number,
+  onUpdatePrice: (id: string, newPrice: number) => void
+): TableSchema<Item> {
   const { orderForm } = useOrderFormCustom()
   const { formatMessage } = useIntl()
   const { removeItem } = useOrderItems()
   const { isSalesUser } = usePermissions()
+  const { getSellingPrice, getDiscountedPrice } = useCheckoutB2BContext()
 
   return useMemo(
     () => ({
@@ -93,16 +100,16 @@ export function useTableSchema(): TableSchema<Item> {
           },
         },
         sellingPrice: {
-          width: 120,
+          width: 150,
           title: formatMessage(messages.price),
           cellRenderer({ rowData }) {
             return (
-              rowData.sellingPrice && (
-                <TruncatedText
-                  text={<FormattedPrice value={rowData.sellingPrice / 100} />}
-                  {...getStrike(rowData)}
-                />
-              )
+              <ManualPrice
+                rowData={rowData}
+                isEditing={isEditing}
+                sliderValue={discount}
+                onUpdatePrice={onUpdatePrice}
+              />
             )
           },
         },
@@ -125,6 +132,25 @@ export function useTableSchema(): TableSchema<Item> {
             },
           },
         }),
+        listPrice: {
+          width: 100,
+          title: formatMessage(messages.margin),
+          cellRenderer({ rowData }) {
+            const sellingPrice = getSellingPrice(rowData, discount)
+
+            return (
+              <TruncatedText
+                text={
+                  <MarginProductPrice
+                    itemId={rowData.id}
+                    sellingPrice={sellingPrice}
+                  />
+                }
+                {...getStrike(rowData)}
+              />
+            )
+          },
+        },
         quantity: {
           width: 110,
           title: <div className="tc">{formatMessage(messages.quantity)}</div>,
@@ -136,12 +162,12 @@ export function useTableSchema(): TableSchema<Item> {
           width: 120,
           title: formatMessage(messages.totalPrice),
           cellRenderer({ rowData }) {
-            const totalPrice = rowData?.priceDefinition?.total
+            const discountedPrice = getDiscountedPrice(rowData, discount)
 
             return (
-              totalPrice && (
+              discountedPrice && (
                 <TruncatedText
-                  text={<FormattedPrice value={totalPrice / 100} />}
+                  text={<FormattedPrice value={discountedPrice / 100} />}
                   {...getStrike(rowData)}
                 />
               )
@@ -166,6 +192,16 @@ export function useTableSchema(): TableSchema<Item> {
         },
       },
     }),
-    [formatMessage, isSalesUser, orderForm.sellers, removeItem]
+    [
+      orderForm,
+      formatMessage,
+      removeItem,
+      isEditing,
+      discount,
+      getSellingPrice,
+      getDiscountedPrice,
+      onUpdatePrice,
+      isSalesUser,
+    ]
   )
 }
